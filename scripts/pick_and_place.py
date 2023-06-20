@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 # Import libraries
 import rospy
 import moveit_commander
@@ -32,7 +34,7 @@ class PickAndPlace(object):
 
         # Initialize moveit_commander and ROS node
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node("my_interfaces", anonymous=True)
+        rospy.init_node("pnp_pipeline")
 
         self.pose_point_pub = rospy.Publisher(
             "pose_point", visualization_msgs.msg.Marker, queue_size=10
@@ -104,7 +106,7 @@ class PickAndPlace(object):
         )
 
     def create_collision_object(
-        self, id, dimensions: list, position: list, rotation_z: int
+        self, id: str, dimensions: list, position: list, rotation_z: int
     ) -> moveit_msgs.msg.CollisionObject:
         """Create collision objects and return it."""
         object = moveit_msgs.msg.CollisionObject()
@@ -156,6 +158,7 @@ class PickAndPlace(object):
         and the rotation in which they are applied (static or relative needs to be specified in the
         axis=<order> flag of the euler tf functions)."""
 
+        # static- is rotation based on the world frame axis (x,y,z)- euler rotation zyz
         if relative is False:
             # Set the target orientation initalize position and orientation messages
             rotation_rads = [
@@ -167,13 +170,13 @@ class PickAndPlace(object):
                 rotation_rads[0], rotation_rads[1], rotation_rads[2], axes="szyz"
             )
             # add the translation to the homogeneous transformation matrix
-            homogeneous_mat_arm[:3, 3] = translation[:3]
+            homogeneous_mat_arm[:3, 3] = translation[:3]   # w^T_ee 
             # create a homogeneous transformation matrix for the end effector with no rotation
-            homogeneous_trans_end_effector = translation_matrix(
+            homogeneous_trans_end_effector = translation_matrix( # palm^T_ee     <- thus this gets inversed
                 [0, 0, end_effector_palm_length]
             )
             # multiply the homogeneous transformation matrix of the arm by the inverse of the homogeneous transformation matrix of the end effector
-            homogeneous_mat = np.dot(
+            homogeneous_mat = np.dot( # w^T_ee * (palm^T_ee)^-1 = w^T_palm
                 homogeneous_mat_arm, np.linalg.inv(homogeneous_trans_end_effector)
             )
             # quaternion_from_euler using input rotation values
@@ -184,6 +187,8 @@ class PickAndPlace(object):
             orientation = Quaternion(
                 quaternion[0], quaternion[1], quaternion[2], quaternion[3]
             )
+            # this is the position of the palm and the index retrieves the x,y,z values from the 
+            # homogeneous transformation matrix
             position = Point(
                 homogeneous_mat[0, 3], homogeneous_mat[1, 3], homogeneous_mat[2, 3]
             )
@@ -193,7 +198,7 @@ class PickAndPlace(object):
             input("[PROGRESS] Pose Target Set, Press Enter to Continue...")
             self.arm.set_pose_target(pose_target)
 
-        # Needs Debugging - Path Planning Error
+        
         else:
             # Set the target orientation initalize position and orientation messages
             rotation = [
@@ -273,7 +278,7 @@ class PickAndPlace(object):
         self.scene.remove_attached_object(self.eef_link, name="rod")
 
     ## UTILITY METHODS
-    def get_rod_position(self) -> None:
+    def get_rod_position(self) -> List[float]:
         """Get the rod position"""
         rod_position = self.scene.get_object_poses(["rod"])["rod"].position
         # convert geometry_msgs.msg.Point to list
@@ -334,7 +339,9 @@ def main():
         pick_and_place.clean_scene()
 
     except rospy.ROSInterruptException:
-        pass
+        pick_and_place.clean_scene()
+        # exit the program
+        return
 
 
 if __name__ == "__main__":

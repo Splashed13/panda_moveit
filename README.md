@@ -6,12 +6,18 @@ ROS package containing scripts utilizing MoveIt specifically MoveIt Commander in
 Run by entering the following in a terminal
 
 ```
-roslaunch panda_moveit rvizsim.launch
+roslaunch panda_moveit run_sim.launch
 ```
 
-and then the following in another terminal
+and then the following in another terminal for the cpp code
 
 ```
-roslaunch panda_moveit pick_and_place.launch
+rosrun panda_moveit pick_and_place
+```
+
+or for the python code 
+
+```
+rosrun panda_moveit pick_and_place.py
 ```
 

@@ -70,12 +70,6 @@ public:
     PickandPlace(ros::NodeHandle nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
     {  
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
-
-        // ROS spinning must be running for the MoveGroupInterface to get information
-        // about the robot's state. One way to do this is to start an AsyncSpinner
-        // beforehand.
-        ros::AsyncSpinner spinner(1);
-        spinner.start();
         
         // set arm planning time 
         const double PLANNING_TIME = 5.0;
@@ -406,6 +400,9 @@ int main(int argc, char** argv)
     ros::init(argc, argv, "pick_and_place");
     ros::NodeHandle nh;
 
+    // ROS spinning must be running for the MoveGroupInterface to get information
+    // about the robot's state. One way to do this is to start an AsyncSpinner
+    // beforehand.
     ros::AsyncSpinner spinner(5);
     spinner.start();
 

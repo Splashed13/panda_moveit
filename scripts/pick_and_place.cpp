@@ -67,7 +67,7 @@ private:
 
 public:
     // The init function
-    PickandPlace(ros::NodeHandle nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
+    PickandPlace(ros::NodeHandle &nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
     {  
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
         

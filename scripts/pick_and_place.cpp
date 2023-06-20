@@ -405,6 +405,10 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pick_and_place");
     ros::NodeHandle nh;
+
+    ros::AsyncSpinner spinner(5);
+    spinner.start();
+
     // add a short sleep so the node can finish initializing
     ros::Duration(0.5).sleep();
 

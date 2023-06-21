@@ -278,7 +278,7 @@ class PickAndPlace(object):
         self.scene.remove_attached_object(self.eef_link, name="rod")
 
     ## UTILITY METHODS
-    def get_rod_position(self) -> List[float]:
+    def get_rod_position(self) -> list:
         """Get the rod position"""
         rod_position = self.scene.get_object_poses(["rod"])["rod"].position
         # convert geometry_msgs.msg.Point to list

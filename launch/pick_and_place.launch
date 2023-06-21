@@ -1,3 +1,0 @@
-<launch>
-  <node name="panda_node" pkg="panda_moveit" type="pick_and_place.py" respawn="false" output="screen" />
-</launch>

@@ -33,6 +33,7 @@ private:
         {"x_pos", 0}, {"y_pos", 0.6}, {"z_height", 0.1}
     };
     const double rod_height = 0.2;
+    const double rod_z_rotation = 45.0;
     
     // MoveIt operates on sets of joints called "planning groups" and stores them in an object called
     // the `JointModelGroup`. Throughout MoveIt the terms "planning group" and "joint model group"
@@ -53,12 +54,6 @@ private:
     const robot_state::JointModelGroup* joint_model_group_arm;
     const robot_state::JointModelGroup* joint_model_group_gripper;
 
-    std::vector<double> floor_dimensions = {2.5, 2.5, 0.01};
-    std::vector<double> floor_position = {0.0, 0.0, -0.01};
-
-    std::vector<double> box1_dimensions = {0.2, 0.4, box1.at("z_height")};
-    std::vector<double> box1_position = {box1.at("x_pos"), box1.at("y_pos"), box1.at("z_height")/2.0};
-
     // empty vector to be filled with the joint values of the robot
     std::vector<double> home_joint_values;
 
@@ -67,18 +62,12 @@ private:
 
 public:
     // The init function
-    PickandPlace(ros::NodeHandle nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
+    PickandPlace(ros::NodeHandle &nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
     {  
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
-
-        // ROS spinning must be running for the MoveGroupInterface to get information
-        // about the robot's state. One way to do this is to start an AsyncSpinner
-        // beforehand.
-        ros::AsyncSpinner spinner(1);
-        spinner.start();
         
         // set arm planning time 
-        const double PLANNING_TIME = 5.0;
+        const double PLANNING_TIME = 10.0;
         move_group_interface_arm.setPlanningTime(PLANNING_TIME);
 
         // Raw pointers are frequently used to refer to the planning group for improved performance.
@@ -126,8 +115,6 @@ public:
             planningGroupsString += groups + ", ";
         }
         ROS_INFO_NAMED("pnp", "Available Planning Groups: %s", planningGroupsString.c_str());
-        // Add a delay before calling getCurrentJointValues()
-        ros::Duration(1.0).sleep();
         
         // using getJointStates to get the current joint values put in a block to print the error 
         home_joint_values = move_group_interface_arm.getCurrentJointValues();
@@ -136,47 +123,11 @@ public:
         {
             jointValuesString += std::to_string(joint) + ", ";
         }
-        ROS_INFO_NAMED("pnp", "Current joint values: %s", jointValuesString.c_str());
-        
-        // add a sleep 
-        //ros::Duration(1000.0).sleep();
+        ROS_INFO_NAMED("pnp", "Home joint values: %s", jointValuesString.c_str());
         
 
     }
 
-    // std::vector<double> jointStateCallback(const sensor_msgs::JointState::ConstPtr& msg, const robot_state::JointModelGroup* joint_model_group_arm)
-    // {
-    //     // Get the joint values for the arm
-    //     std::vector<double> arm_joint_values;
-    //     for (int i = 0; i < msg->name.size(); i++)
-    //     {
-    //         if (joint_model_group_arm->hasJointModel(msg->name[i]))
-    //         {
-    //         arm_joint_values.push_back(msg->position[i]);
-    //         }
-    //     }
-
-    //     return arm_joint_values;
-    // }
-
-    // std::vector<double> getArmJointStatesFromTopic(const robot_state::JointModelGroup* joint_model_group_arm)
-    // {   
-    //     // Create a node handle
-    //     ros::NodeHandle nh;
-    //     // Subscribe to the joint state topic
-    //     sensor_msgs::JointState::ConstPtr msg;
-    //     ros::Subscriber sub = nh.subscribe<sensor_msgs::JointState>("/joint_states", 1, [&](const sensor_msgs::JointState::ConstPtr& joint_state_msg) {
-    //         msg = joint_state_msg;
-    //     });
-
-    //     // Spin the node
-    //     ros::spinOnce();
-
-
-
-    //     //Return the joint values
-    //     return jointStateCallback(msg, joint_model_group_arm);
-    // }
 
         
     void createCollisionObject(std::string id, std::vector<double> dimensions, std::vector<double> position, double rotation_z)
@@ -244,7 +195,7 @@ public:
         // Rod
         std::vector<double> rod_dimensions = {0.02, 0.02, rod_height};
         std::vector<double> rod_position = {box1.at("x_pos"), box1.at("y_pos"), rod_height / 2.0 + box1.at("z_height")};
-        createCollisionObject("rod", rod_dimensions, rod_position, 45.0);
+        createCollisionObject("rod", rod_dimensions, rod_position, rod_z_rotation);
     }
 
     void clean_scene() {
@@ -293,10 +244,12 @@ public:
 
         // Create message types for the pose target
         geometry_msgs::Quaternion orientation;
-        orientation.x = quaternion.x();
-        orientation.y = quaternion.y();
-        orientation.z = quaternion.z();
-        orientation.w = quaternion.w();
+        orientation = tf2::toMsg(quaternion);
+
+        // orientation.x = quaternion.x();
+        // orientation.y = quaternion.y();
+        // orientation.z = quaternion.z();
+        // orientation.w = quaternion.w();
 
         geometry_msgs::Point position;
         position.x = homogeneous_mat(0, 3);
@@ -324,8 +277,8 @@ public:
         // print if the arm was able to move to the target pose
         ROS_INFO_NAMED("pnp", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
 
-        // execute the plan
-        move_group_interface_arm.move();
+
+        //move_group_interface_arm.move();
 
     }
 
@@ -371,6 +324,7 @@ public:
         if (search != object_poses.end()) {
             auto rod_pose = search->second;
             // convert geometry_msgs::Pose to vector
+            ROS_INFO_NAMED("pnp", "Rod position: %f, %f, %f", rod_pose.position.x, rod_pose.position.y, rod_pose.position.z);
             return {rod_pose.position.x, rod_pose.position.y, rod_pose.position.z};
         } else {
             throw std::runtime_error("Rod not found in object_poses");
@@ -391,12 +345,14 @@ public:
         // Create collision scene
         createCollisionScene();
 
-        // get rod position
+        // Get rod position
         std::vector<double> rod_position = get_rod_position();
-        // print rod position
-        ROS_INFO_NAMED("pnp", "Rod position: %f, %f, %f", rod_position[0], rod_position[1], rod_position[2]);
 
-        ros::Duration(2.0).sleep();
+        // set pose target
+        set_pose_target(rod_position, {0, 0, rod_z_rotation});
+
+        // sleep to view rviz 
+        ros::Duration(1000).sleep();
     }
 };
 }
@@ -405,6 +361,13 @@ int main(int argc, char** argv)
 {
     ros::init(argc, argv, "pick_and_place");
     ros::NodeHandle nh;
+
+    // ROS spinning must be running for the MoveGroupInterface to get information
+    // about the robot's state. One way to do this is to start an AsyncSpinner
+    // beforehand.
+    ros::AsyncSpinner spinner(5);
+    spinner.start();
+
     // add a short sleep so the node can finish initializing
     ros::Duration(0.5).sleep();
 
@@ -419,5 +382,4 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
 

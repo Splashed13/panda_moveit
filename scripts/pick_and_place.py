@@ -31,11 +31,11 @@ class PickAndPlace(object):
 
     def __init__(self):
         super(PickAndPlace, self).__init__()
+        rospy.init_node("pnp_pipeline")
 
         # Initialize moveit_commander and ROS node
         moveit_commander.roscpp_initialize(sys.argv)
-        rospy.init_node("pnp_pipeline")
-
+    
         self.pose_point_pub = rospy.Publisher(
             "pose_point", visualization_msgs.msg.Marker, queue_size=10
         )
@@ -151,7 +151,7 @@ class PickAndPlace(object):
         self.arm.stop()
 
     def go_to_pose_target(
-        self, translation: list = None, rotation: list = None, relative: bool = False
+        self, translation: list, rotation: list, relative: bool = False
     ) -> None:
         """Go to a specified pose, the pose is selected by the user as the desired location
         of the palm of the hand. The orientation is specified by the user as a list of Euler angles
@@ -171,18 +171,34 @@ class PickAndPlace(object):
             )
             # add the translation to the homogeneous transformation matrix
             homogeneous_mat_arm[:3, 3] = translation[:3]   # w^T_ee 
+            # print the homogeneous transformation matrix for debugging purposes
+            #print("homogeneous_mat_arm: ", homogeneous_mat_arm)
+
+
             # create a homogeneous transformation matrix for the end effector with no rotation
             homogeneous_trans_end_effector = translation_matrix( # palm^T_ee     <- thus this gets inversed
                 [0, 0, end_effector_palm_length]
             )
+
+            # print the homogeneous transformation matrix for debugging purposes
+            #print("homogenous translation end effector matrix: ", homogeneous_trans_end_effector)
+
+
             # multiply the homogeneous transformation matrix of the arm by the inverse of the homogeneous transformation matrix of the end effector
             homogeneous_mat = np.dot( # w^T_ee * (palm^T_ee)^-1 = w^T_palm
                 homogeneous_mat_arm, np.linalg.inv(homogeneous_trans_end_effector)
             )
+
+            # print the homogeneous transformation matrix for debugging purposes
+            #print("homogeneous_mat: ", homogeneous_mat)
+
+
             # quaternion_from_euler using input rotation values
             quaternion = quaternion_from_euler(
                 rotation_rads[0], rotation_rads[1], rotation_rads[2], axes="szyz"
             )
+
+
             # create message types for the pose target
             orientation = Quaternion(
                 quaternion[0], quaternion[1], quaternion[2], quaternion[3]
@@ -190,11 +206,15 @@ class PickAndPlace(object):
             # this is the position of the palm and the index retrieves the x,y,z values from the 
             # homogeneous transformation matrix
             position = Point(
-                homogeneous_mat[0, 3], homogeneous_mat[1, 3], homogeneous_mat[2, 3]
+                homogeneous_mat[0, 3], homogeneous_mat[1, 3], homogeneous_mat[2, 3] # type: ignore
             )
             # Set the target pose message
             pose_target = Pose(position, orientation)
             self.add_pose_arrow(position, rotation_rads[2])
+
+            # print the pose target for debugging purposes
+            #print("pose_target: ", pose_target)
+
             input("[PROGRESS] Pose Target Set, Press Enter to Continue...")
             self.arm.set_pose_target(pose_target)
 
@@ -251,6 +271,9 @@ class PickAndPlace(object):
     ## FLOW METHODS
     def pick_rod(self) -> None:
         rod_position = self.get_rod_position()
+        # print the rod position for debugging purposes
+        print("rod_position: ", rod_position)
+
         self.go_to_pose_target(
             [
                 round(rod_position[0], 2),
@@ -301,6 +324,10 @@ class PickAndPlace(object):
             desired_position,
             Quaternion(quaternion[0], quaternion[1], quaternion[2], quaternion[3]),
         )
+
+        # print the desired pose for debugging purposes
+        print("desired_pose: ", desired_pose)
+
         marker.pose = desired_pose
         # Publish the marker
         self.pose_point_pub.publish(marker)
@@ -314,10 +341,8 @@ class PickAndPlace(object):
         self.pose_point_pub.publish(marker)
 
 
-def main():
+def main(pick_and_place):
     try:
-        # initialize the node
-        pick_and_place = PickAndPlace()
         # retrieve critical parameters and set up the scene
         home_joint_pos = pick_and_place.arm.get_current_joint_values()
         print(
@@ -345,4 +370,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # initialize the pick and place node
+    pick_and_place = PickAndPlace()
+    # run the main function
+    main(pick_and_place)

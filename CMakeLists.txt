@@ -24,6 +24,7 @@ find_package(catkin REQUIRED COMPONENTS
   pluginlib
   tf2
   sensor_msgs
+  moveit_commander
 )
 
 find_package(gazebo REQUIRED)
@@ -56,6 +57,8 @@ catkin_package(
     gazebo_ros
     moveit_core
     moveit_visual_tools
+    moveit_ros_planning
+    moveit_commander
     moveit_ros_planning_interface
     tf2_geometry_msgs
     visualization_msgs

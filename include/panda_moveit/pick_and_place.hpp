@@ -12,6 +12,7 @@
 #include <tf2_eigen/tf2_eigen.h>
 #include <sensor_msgs/JointState.h>
 #include <geometry_msgs/Pose.h>
+#include <boost/algorithm/string/join.hpp>
 
 namespace pnp
 {

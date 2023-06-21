@@ -1,4 +1,5 @@
-#include "panda_moveit/pick_and_place.hpp"
+#include "../include/panda_moveit/pick_and_place.hpp"
+
 namespace pnp
 {
     // The init function
@@ -7,7 +8,7 @@ namespace pnp
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
 
         // set arm planning time
-        const double PLANNING_TIME = 5.0;
+        const double PLANNING_TIME = 15.0;
         move_group_interface_arm.setPlanningTime(PLANNING_TIME);
 
         // Raw pointers are frequently used to refer to the planning group for improved performance.
@@ -21,43 +22,24 @@ namespace pnp
         ROS_INFO_NAMED("pnp", "Planning frame: %s", move_group_interface_arm.getPlanningFrame().c_str());
 
         std::vector<std::string> linkNames = move_group_interface_arm.getLinkNames();
-        std::string linkNamesArm;
-        for (const auto &link : linkNames)
-        {
-            linkNamesArm += link + ", ";
-        }
+        std::string linkNamesArm = boost::algorithm::join(linkNames, ", ");
         ROS_INFO_NAMED("pnp", "Arm links: %s", linkNamesArm.c_str());
 
         // ROS_INFO_NAMED the arm joint names
         std::vector<std::string> jointNamesArm = move_group_interface_arm.getJoints();
-        std::string jointNamesArmString;
-        for (const auto &joint : jointNamesArm)
-        {
-            jointNamesArmString += joint + ", ";
-        }
+        std::string jointNamesArmString = boost::algorithm::join(jointNamesArm, ", ");
         ROS_INFO_NAMED("pnp", "Arm joint names: %s", jointNamesArmString.c_str());
 
         // ROS_INFO_NAMED the gripper joint names
         std::vector<std::string> jointNamesGripper = move_group_interface_gripper.getJoints();
-        std::string jointNamesGripperString;
-        for (const auto &joint : jointNamesGripper)
-        {
-            jointNamesGripperString += joint + ", ";
-        }
-
+        std::string jointNamesGripperString = boost::algorithm::join(jointNamesGripper, ", ");
         ROS_INFO_NAMED("pnp", "Gripper joints names: %s", jointNamesGripperString.c_str());
 
         // We can get a list of all the groups in the robot:
         std::vector<std::string> planningGroups = move_group_interface_arm.getJointModelGroupNames();
-        std::string planningGroupsString;
-        for (const auto &groups : planningGroups)
-        {
-            planningGroupsString += groups + ", ";
-        }
+        std::string planningGroupsString = boost::algorithm::join(planningGroups, ", ");
         ROS_INFO_NAMED("pnp", "Available Planning Groups: %s", planningGroupsString.c_str());
-        // Add a delay before calling getCurrentJointValues()
-        ros::Duration(1.0).sleep();
-
+    
         // using getJointStates to get the current joint values put in a block to print the error
         home_joint_values = move_group_interface_arm.getCurrentJointValues();
         std::string jointValuesString;
@@ -67,8 +49,6 @@ namespace pnp
         }
         ROS_INFO_NAMED("pnp", "Current joint values: %s", jointValuesString.c_str());
 
-        // add a sleep
-        // ros::Duration(1000.0).sleep();
     }
 
     void PickandPlace::createCollisionObject(std::string id, std::vector<double> dimensions, std::vector<double> position, double rotation_z)
@@ -168,12 +148,21 @@ namespace pnp
         homogeneous_mat_arm(1, 3) = translation[1];
         homogeneous_mat_arm(2, 3) = translation[2];
 
+        // print the homogeneous matrix of the arm
+        ROS_INFO_STREAM_NAMED("pnp", "homogeneous_mat_arm: \n" << homogeneous_mat_arm);
+
         // Create a homogeneous transformation matrix for the end effector with no rotation
         Eigen::Matrix4d homogeneous_trans_end_effector = Eigen::Matrix4d::Identity();
         homogeneous_trans_end_effector(2, 3) = end_effector_palm_length;
 
+        // print the homogeneous matrix of the end effector
+        ROS_INFO_STREAM_NAMED("pnp", "homogeneous_translation_end_effector: \n" << homogeneous_trans_end_effector);
+
         // Multiply the homogeneous transformation matrix of the arm by the inverse of the homogeneous transformation matrix of the end effector
         Eigen::Matrix4d homogeneous_mat = homogeneous_mat_arm * homogeneous_trans_end_effector.inverse();
+
+        // print the homogeneous matrix of the adjusted homogenous matrix
+        ROS_INFO_STREAM_NAMED("pnp", "homogeneous_mat: \n" << homogeneous_mat);
 
         // Create a quaternion from euler angles
         tf2::Quaternion quaternion;
@@ -184,10 +173,7 @@ namespace pnp
 
         // Create message types for the pose target
         geometry_msgs::Quaternion orientation;
-        orientation.x = quaternion.x();
-        orientation.y = quaternion.y();
-        orientation.z = quaternion.z();
-        orientation.w = quaternion.w();
+        orientation = tf2::toMsg(quaternion);
 
         geometry_msgs::Point position;
         position.x = homogeneous_mat(0, 3);
@@ -202,7 +188,11 @@ namespace pnp
         // add pose arrow
         add_pose_arrow(pose_target.position, rotation_rads[2]);
 
-        // set the target pose
+
+        // print the target pose
+        ROS_INFO_STREAM_NAMED("pnp", "pose_target: \n" << pose_target);
+
+        // set the pose target
         move_group_interface_arm.setPoseTarget(pose_target);
 
         // print target pose successfully set
@@ -212,10 +202,8 @@ namespace pnp
         bool success = (move_group_interface_arm.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
         // print if the arm was able to move to the target pose
-        ROS_INFO_NAMED("pnp", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
+        ROS_INFO_NAMED("pnp", "Moving to pose target %s", success ? "" : "FAILED");
 
-        // execute the plan
-        move_group_interface_arm.move();
     }
 
     void PickandPlace::add_pose_arrow(geometry_msgs::Point desired_position, float z_rotation)
@@ -240,6 +228,17 @@ namespace pnp
         geometry_msgs::Pose Pose;
         Pose.position = desired_position;
         Pose.orientation = tf2::toMsg(quaternion);
+
+        // print the desired pose for debugging
+        ROS_INFO_STREAM_NAMED("pnp", "desired pose: \n"
+                                         << "x: " << Pose.position.x << "\n"
+                                         << "y: " << Pose.position.y << "\n"
+                                         << "z: " << Pose.position.z << "\n"
+                                         << "x: " << Pose.orientation.x << "\n"
+                                         << "y: " << Pose.orientation.y << "\n"
+                                         << "z: " << Pose.orientation.z << "\n"
+                                         << "w: " << Pose.orientation.w);
+
         marker.pose = Pose;
 
         // Publish the marker
@@ -286,6 +285,15 @@ namespace pnp
         // print rod position
         ROS_INFO_NAMED("pnp", "Rod position: %f, %f, %f", rod_position[0], rod_position[1], rod_position[2]);
 
-        ros::Duration(2.0).sleep();
+        // set pose target
+        set_pose_target(rod_position, {45, 90, 45});
+
+        // execute the plan
+        move_group_interface_arm.move();
+
+        // sleep for 10000 seconds for debugging
+        ros::Duration(10000).sleep();
+
+        
     }
 };

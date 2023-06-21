@@ -46,6 +46,7 @@ link_directories(${GAZEBO_LIBRARY_DIRS})
 
 # catkin_package ensures that the libraries and executables created in the package are linked together
 catkin_package(
+  INCLUDE_DIRS include
   LIBRARIES
   INCLUDE_DIRS 
   CATKIN_DEPENDS
@@ -67,6 +68,7 @@ catkin_package(
 
 
 include_directories(
+  include
   SYSTEM
   ${catkin_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIR}
@@ -78,6 +80,6 @@ catkin_install_python(PROGRAMS scripts/pick_and_place.py
 DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION})
 
 # Cpp nodes for pick and place
-add_executable(pick_and_place scripts/pick_and_place.cpp)
+add_executable(pick_and_place src/main.cpp src/pick_and_place.cpp)
 target_link_libraries(pick_and_place ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 

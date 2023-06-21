@@ -1,73 +1,13 @@
-// ROS
-#include <ros/ros.h>
-#include <cmath>
-#include <moveit/move_group_interface/move_group_interface.h>
-#include <moveit/planning_scene_interface/planning_scene_interface.h>
-#include <tf2_geometry_msgs/tf2_geometry_msgs.h>
-#include <tf2/LinearMath/Quaternion.h>
-#include <visualization_msgs/Marker.h> 
-#include <Eigen/Geometry>
-#include <geometry_msgs/Quaternion.h>
-#include <geometry_msgs/Point.h>
-#include <tf2_eigen/tf2_eigen.h>
-#include <sensor_msgs/JointState.h>
-#include <geometry_msgs/Pose.h>
-
+#include "panda_moveit/pick_and_place.hpp"
 namespace pnp
 {
-    // This class contains all the functions needed to perform the pick and place operation
-class PickandPlace{
-private:
-
-    ros::Publisher pose_point_pub;
-    // Set global parameters of panda arm
-    const std::vector<double> OPEN_GRIPPER = {0.035, 0.035};
-    const std::vector<double> CLOSE_GRIPPER = {0.011, 0.011};
-    const double end_effector_palm_length = 0.058 * 1.8; // 1.4 is padding
-
-    // Map is the python equivalent of a dictionary
-    const std::map<std::string, double> box1 = {
-        {"x_pos", 0.6}, {"y_pos", 0.2}, {"z_height", 0.2}
-    };
-    const std::map<std::string, double> box2 = {
-        {"x_pos", 0}, {"y_pos", 0.6}, {"z_height", 0.1}
-    };
-    const double rod_height = 0.2;
-    const double rod_z_rotation = 45.0;
-    
-    // MoveIt operates on sets of joints called "planning groups" and stores them in an object called
-    // the `JointModelGroup`. Throughout MoveIt the terms "planning group" and "joint model group"
-    // are used interchangeably.
-    const std::string PLANNING_GROUP_ARM = "panda_arm";
-    const std::string PLANNING_GROUP_GRIPPER = "panda_hand";
-
-    moveit::planning_interface::MoveGroupInterface move_group_interface_arm;
-    moveit::planning_interface::MoveGroupInterface move_group_interface_gripper;
-
-
-    // Create a moveit::planning_interface::MoveGroupInterface::Plan object to store the movements
-    moveit::planning_interface::MoveGroupInterface::Plan plan;
-
-    // planning_scene_interface allows us to add and remove collision objects in the world
-    moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
-
-    const robot_state::JointModelGroup* joint_model_group_arm;
-    const robot_state::JointModelGroup* joint_model_group_gripper;
-
-    // empty vector to be filled with the joint values of the robot
-    std::vector<double> home_joint_values;
-
-
-
-
-public:
     // The init function
-    PickandPlace(ros::NodeHandle &nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
-    {  
+    PickandPlace::PickandPlace(ros::NodeHandle &nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
+    {
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
-        
-        // set arm planning time 
-        const double PLANNING_TIME = 10.0;
+
+        // set arm planning time
+        const double PLANNING_TIME = 5.0;
         move_group_interface_arm.setPlanningTime(PLANNING_TIME);
 
         // Raw pointers are frequently used to refer to the planning group for improved performance.
@@ -75,14 +15,14 @@ public:
         joint_model_group_gripper = move_group_interface_gripper.getCurrentState()->getJointModelGroup(PLANNING_GROUP_GRIPPER);
     }
 
-    void writeRobotDetails()
+    void PickandPlace::writeRobotDetails()
     {
         // Print information about the robot
         ROS_INFO_NAMED("pnp", "Planning frame: %s", move_group_interface_arm.getPlanningFrame().c_str());
 
         std::vector<std::string> linkNames = move_group_interface_arm.getLinkNames();
         std::string linkNamesArm;
-        for (const auto& link : linkNames)
+        for (const auto &link : linkNames)
         {
             linkNamesArm += link + ", ";
         }
@@ -91,7 +31,7 @@ public:
         // ROS_INFO_NAMED the arm joint names
         std::vector<std::string> jointNamesArm = move_group_interface_arm.getJoints();
         std::string jointNamesArmString;
-        for (const auto& joint : jointNamesArm)
+        for (const auto &joint : jointNamesArm)
         {
             jointNamesArmString += joint + ", ";
         }
@@ -100,7 +40,7 @@ public:
         // ROS_INFO_NAMED the gripper joint names
         std::vector<std::string> jointNamesGripper = move_group_interface_gripper.getJoints();
         std::string jointNamesGripperString;
-        for (const auto& joint : jointNamesGripper)
+        for (const auto &joint : jointNamesGripper)
         {
             jointNamesGripperString += joint + ", ";
         }
@@ -110,27 +50,28 @@ public:
         // We can get a list of all the groups in the robot:
         std::vector<std::string> planningGroups = move_group_interface_arm.getJointModelGroupNames();
         std::string planningGroupsString;
-        for (const auto& groups : planningGroups)
+        for (const auto &groups : planningGroups)
         {
             planningGroupsString += groups + ", ";
         }
         ROS_INFO_NAMED("pnp", "Available Planning Groups: %s", planningGroupsString.c_str());
-        
-        // using getJointStates to get the current joint values put in a block to print the error 
+        // Add a delay before calling getCurrentJointValues()
+        ros::Duration(1.0).sleep();
+
+        // using getJointStates to get the current joint values put in a block to print the error
         home_joint_values = move_group_interface_arm.getCurrentJointValues();
         std::string jointValuesString;
-        for (const auto& joint : home_joint_values)
+        for (const auto &joint : home_joint_values)
         {
             jointValuesString += std::to_string(joint) + ", ";
         }
-        ROS_INFO_NAMED("pnp", "Home joint values: %s", jointValuesString.c_str());
-        
+        ROS_INFO_NAMED("pnp", "Current joint values: %s", jointValuesString.c_str());
 
+        // add a sleep
+        // ros::Duration(1000.0).sleep();
     }
 
-
-        
-    void createCollisionObject(std::string id, std::vector<double> dimensions, std::vector<double> position, double rotation_z)
+    void PickandPlace::createCollisionObject(std::string id, std::vector<double> dimensions, std::vector<double> position, double rotation_z)
     {
         // Create collision object
         moveit_msgs::CollisionObject collision_object;
@@ -175,7 +116,7 @@ public:
         ROS_INFO_NAMED("pnp", "Added %s into the world", id.c_str());
     }
 
-    void createCollisionScene()
+    void PickandPlace::createCollisionScene()
     {
         // Floor
         std::vector<double> floor_dimensions = {2.5, 2.5, 0.01};
@@ -195,10 +136,11 @@ public:
         // Rod
         std::vector<double> rod_dimensions = {0.02, 0.02, rod_height};
         std::vector<double> rod_position = {box1.at("x_pos"), box1.at("y_pos"), rod_height / 2.0 + box1.at("z_height")};
-        createCollisionObject("rod", rod_dimensions, rod_position, rod_z_rotation);
+        createCollisionObject("rod", rod_dimensions, rod_position, 45.0);
     }
 
-    void clean_scene() {
+    void PickandPlace::clean_scene()
+    {
         std::vector<std::string> object_ids;
         object_ids.push_back("floor");
         object_ids.push_back("box1");
@@ -207,15 +149,13 @@ public:
         planning_scene_interface.removeCollisionObjects(object_ids);
     }
 
-
-    void set_pose_target(std::vector<double> translation, std::vector<double> rotation)
+    void PickandPlace::set_pose_target(std::vector<double> translation, std::vector<double> rotation)
     {
         // Euler angles to radians
         std::vector<double> rotation_rads = {
             rotation[0] * M_PI / 180.0,
             rotation[1] * M_PI / 180.0,
-            rotation[2] * M_PI / 180.0
-        };
+            rotation[2] * M_PI / 180.0};
 
         Eigen::Matrix4d homogeneous_mat_arm = Eigen::Matrix4d::Identity();
         Eigen::Matrix3d Rz1, Ry, Rz2;
@@ -244,12 +184,10 @@ public:
 
         // Create message types for the pose target
         geometry_msgs::Quaternion orientation;
-        orientation = tf2::toMsg(quaternion);
-
-        // orientation.x = quaternion.x();
-        // orientation.y = quaternion.y();
-        // orientation.z = quaternion.z();
-        // orientation.w = quaternion.w();
+        orientation.x = quaternion.x();
+        orientation.y = quaternion.y();
+        orientation.z = quaternion.z();
+        orientation.w = quaternion.w();
 
         geometry_msgs::Point position;
         position.x = homogeneous_mat(0, 3);
@@ -260,7 +198,6 @@ public:
         geometry_msgs::Pose pose_target;
         pose_target.position = position;
         pose_target.orientation = orientation;
-
 
         // add pose arrow
         add_pose_arrow(pose_target.position, rotation_rads[2]);
@@ -277,12 +214,12 @@ public:
         // print if the arm was able to move to the target pose
         ROS_INFO_NAMED("pnp", "Visualizing plan 1 (pose goal) %s", success ? "" : "FAILED");
 
-
-        //move_group_interface_arm.move();
-
+        // execute the plan
+        move_group_interface_arm.move();
     }
 
-    void add_pose_arrow(geometry_msgs::Point desired_position, float z_rotation) {
+    void PickandPlace::add_pose_arrow(geometry_msgs::Point desired_position, float z_rotation)
+    {
         // Publish a marker at the desired pose
         visualization_msgs::Marker marker;
         marker.ns = "arrow";
@@ -304,16 +241,15 @@ public:
         Pose.position = desired_position;
         Pose.orientation = tf2::toMsg(quaternion);
         marker.pose = Pose;
-        
+
         // Publish the marker
         pose_point_pub.publish(marker);
 
         // print pose arrow successfully published
         ROS_INFO_NAMED("pnp", "Pose arrow successfully published");
-
     }
 
-    std::vector<double> get_rod_position() 
+    std::vector<double> PickandPlace::get_rod_position()
     {
         std::vector<std::string> object_ids;
         object_ids.push_back("rod");
@@ -321,65 +257,35 @@ public:
         auto object_poses = planning_scene_interface.getObjectPoses(object_ids);
         // Check if "rod" exists in the returned map
         auto search = object_poses.find("rod");
-        if (search != object_poses.end()) {
+        if (search != object_poses.end())
+        {
             auto rod_pose = search->second;
             // convert geometry_msgs::Pose to vector
-            ROS_INFO_NAMED("pnp", "Rod position: %f, %f, %f", rod_pose.position.x, rod_pose.position.y, rod_pose.position.z);
             return {rod_pose.position.x, rod_pose.position.y, rod_pose.position.z};
-        } else {
+        }
+        else
+        {
             throw std::runtime_error("Rod not found in object_poses");
         }
     }
 
-
-    void pick(){
-        
+    void PickandPlace::pick()
+    {
     }
 
-
-    void run()
-    {   
+    void PickandPlace::run()
+    {
         // Write robot details
         writeRobotDetails();
 
         // Create collision scene
         createCollisionScene();
 
-        // Get rod position
+        // get rod position
         std::vector<double> rod_position = get_rod_position();
+        // print rod position
+        ROS_INFO_NAMED("pnp", "Rod position: %f, %f, %f", rod_position[0], rod_position[1], rod_position[2]);
 
-        // set pose target
-        set_pose_target(rod_position, {0, 0, rod_z_rotation});
-
-        // sleep to view rviz 
-        ros::Duration(1000).sleep();
+        ros::Duration(2.0).sleep();
     }
 };
-}
-
-int main(int argc, char** argv)
-{
-    ros::init(argc, argv, "pick_and_place");
-    ros::NodeHandle nh;
-
-    // ROS spinning must be running for the MoveGroupInterface to get information
-    // about the robot's state. One way to do this is to start an AsyncSpinner
-    // beforehand.
-    ros::AsyncSpinner spinner(5);
-    spinner.start();
-
-    // add a short sleep so the node can finish initializing
-    ros::Duration(0.5).sleep();
-
-    // Instantiate the PickandPlace class
-    pnp::PickandPlace pnp(nh);
-
-    // Run pick and place operations
-    pnp.run();
-
-    // Shutdown the node and join the thread back before exiting
-    ros::shutdown();
-
-    return 0;
-}
-

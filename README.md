@@ -21,3 +21,20 @@ or for the python code
 rosrun panda_moveit pick_and_place.py
 ```
 
+---
+# Gazebo Integration 
+
+Franka Arm has been setup with moveit setup assistant and launched through an include of the demo_gazebo.launch from the panda_moveit_config file
+
+```
+roslaunch panda_moveit run_gazebo.launch
+```
+
+To view the robot parameter details run
+
+```
+rostopic echo -n 1 /move_group/monitored_planning_scene 
+```
+
+
+

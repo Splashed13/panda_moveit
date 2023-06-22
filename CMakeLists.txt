@@ -7,6 +7,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   roscpp
   std_msgs
+  message_runtime
   gazebo_ros
   moveit_core
   moveit_ros_planning
@@ -25,14 +26,24 @@ find_package(catkin REQUIRED COMPONENTS
   tf2
   sensor_msgs
   moveit_commander
+  geometry_msgs
 )
 
 find_package(gazebo REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(Boost REQUIRED system filesystem date_time thread)
 
+# # Or other packages containing msgs
 generate_messages(
-  DEPENDENCIES actionlib_msgs std_msgs trajectory_msgs control_msgs visualization_msgs sensor_msgs # Or other packages containing msgs
+  DEPENDENCIES 
+  std_msgs
+  geometry_msgs
+  moveit_msgs  
+  actionlib_msgs 
+  trajectory_msgs 
+  control_msgs 
+  visualization_msgs 
+  sensor_msgs 
 )
 
 link_directories(${GAZEBO_LIBRARY_DIRS})
@@ -50,21 +61,29 @@ catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
   INCLUDE_DIRS 
-  CATKIN_DEPENDS
-    roscpp
-    rospy
-    std_msgs
-    gazebo_ros
-    moveit_core
-    moveit_visual_tools
-    moveit_ros_planning
+  CATKIN_DEPENDS 
+    rospy 
+    roscpp 
+    std_msgs 
+    message_runtime 
+    gazebo_ros 
+    moveit_core 
+    moveit_ros_planning 
+    moveit_ros_planning_interface 
+    moveit_ros_perception 
+    rviz_visual_tools 
+    moveit_visual_tools 
+    tf2_geometry_msgs 
+    geometric_shapes 
+    tf2_ros 
+    tf2_eigen 
+    actionlib_msgs 
+    visualization_msgs 
+    control_msgs 
+    pluginlib 
+    tf2 
+    sensor_msgs 
     moveit_commander
-    moveit_ros_planning_interface
-    tf2_geometry_msgs
-    visualization_msgs
-    actionlib_msgs
-    control_msgs
-    sensor_msgs
   DEPENDS
     EIGEN3
 )

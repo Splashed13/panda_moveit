@@ -36,5 +36,9 @@ To view the robot parameter details run
 rostopic echo -n 1 /move_group/monitored_planning_scene 
 ```
 
+To kill all ros processes
 
+```
+killall -9 roscore rosmaster rosout roslaunch
+```
 

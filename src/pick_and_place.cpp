@@ -4,48 +4,48 @@
 // Define the namespace to group related code together
 namespace pnp
 {
-    PickandPlace::PickandPlace(ros::NodeHandle &nh) : move_group_interface_arm(PLANNING_GROUP_ARM), move_group_interface_gripper(PLANNING_GROUP_GRIPPER)
-    {
+    PickandPlace::PickandPlace(ros::NodeHandle &nh)
+    {   
         // Set up a publisher for the pose point visualization marker
         pose_point_pub = nh.advertise<visualization_msgs::Marker>("pose_point", 10);
 
+        move_group_interface_arm = std::make_unique<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP_ARM);
+        move_group_interface_gripper = std::make_unique<moveit::planning_interface::MoveGroupInterface>(PLANNING_GROUP_GRIPPER);
+
         // Set the planning time for the arm movement
         const double PLANNING_TIME = 15.0;
-        move_group_interface_arm.setPlanningTime(PLANNING_TIME);
+        move_group_interface_arm->setPlanningTime(PLANNING_TIME);
 
-        // Use raw pointers for performance. These point to the joint model groups for the arm and gripper
-        joint_model_group_arm = move_group_interface_arm.getCurrentState()->getJointModelGroup(PLANNING_GROUP_ARM);
-        joint_model_group_gripper = move_group_interface_gripper.getCurrentState()->getJointModelGroup(PLANNING_GROUP_GRIPPER);
     }
 
     void PickandPlace::writeRobotDetails()
     {
         // Print out the planning frame for the arm
-        ROS_INFO_NAMED("pnp", "Planning frame: %s", move_group_interface_arm.getPlanningFrame().c_str());
+        ROS_INFO_NAMED("pnp", "Planning frame: %s", move_group_interface_arm->getPlanningFrame().c_str());
 
         // Get the link names for the arm and concatenate them into a single string, then print
-        std::vector<std::string> linkNames = move_group_interface_arm.getLinkNames();
+        std::vector<std::string> linkNames = move_group_interface_arm->getLinkNames();
         std::string linkNamesArm = boost::algorithm::join(linkNames, ", ");
         ROS_INFO_NAMED("pnp", "Arm links: %s", linkNamesArm.c_str());
 
         // Get the joint names for the arm and concatenate them into a single string, then print
-        std::vector<std::string> jointNamesArm = move_group_interface_arm.getJoints();
+        std::vector<std::string> jointNamesArm = move_group_interface_arm->getJoints();
         std::string jointNamesArmString = boost::algorithm::join(jointNamesArm, ", ");
         ROS_INFO_NAMED("pnp", "Arm joint names: %s", jointNamesArmString.c_str());
 
         // Get the joint names for the gripper and concatenate them into a single string, then print
-        std::vector<std::string> jointNamesGripper = move_group_interface_gripper.getJoints();
+        std::vector<std::string> jointNamesGripper = move_group_interface_gripper->getJoints();
         std::string jointNamesGripperString = boost::algorithm::join(jointNamesGripper, ", ");
         ROS_INFO_NAMED("pnp", "Gripper joints names: %s", jointNamesGripperString.c_str());
 
         // Get the list of all available planning groups, concatenate them into a single string, then print
-        std::vector<std::string> planningGroups = move_group_interface_arm.getJointModelGroupNames();
+        std::vector<std::string> planningGroups = move_group_interface_arm->getJointModelGroupNames();
         std::string planningGroupsString = boost::algorithm::join(planningGroups, ", ");
         ROS_INFO_NAMED("pnp", "Available Planning Groups: %s", planningGroupsString.c_str());
 
     
         // Get the home joint values and print them out
-        home_joint_values = move_group_interface_arm.getCurrentJointValues();
+        home_joint_values = move_group_interface_arm->getCurrentJointValues();
         std::string jointValuesString;
         for (const auto &joint : home_joint_values)
         {
@@ -184,10 +184,10 @@ namespace pnp
         add_pose_arrow(pose_target.position, rotation_rads[2]);
 
         // set the pose target
-        move_group_interface_arm.setPoseTarget(pose_target);
+        move_group_interface_arm->setPoseTarget(pose_target);
 
         // move to arm to the target pose
-        bool success = (move_group_interface_arm.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        bool success = (move_group_interface_arm->plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
         // print if the arm was able to move to the target pose
         ROS_INFO_NAMED("pnp", "Moving to pose target %s", success ? "" : "FAILED");
@@ -254,25 +254,25 @@ namespace pnp
     void PickandPlace::go_to_home_position()
     {
         // uses the home_joint_value variable to go to the home position of the robot
-        move_group_interface_arm.setJointValueTarget(home_joint_values);
+        move_group_interface_arm->setJointValueTarget(home_joint_values);
 
         // move to arm to the target pose
-        bool success = (move_group_interface_arm.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        bool success = (move_group_interface_arm->plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
 
         // print if the arm was able to move to the target pose
         ROS_INFO_NAMED("pnp", "Moving to home position %s", success ? "" : "FAILED");
 
         // move the arm to the target pose
-        move_group_interface_arm.move();
+        move_group_interface_arm->move();
     
     }
 
     void PickandPlace::open_gripper(){
         // Set the joint value target for the gripper
-        move_group_interface_gripper.setJointValueTarget(OPEN_GRIPPER);
-        bool success = (move_group_interface_gripper.plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
+        move_group_interface_gripper->setJointValueTarget(OPEN_GRIPPER);
+        bool success = (move_group_interface_gripper->plan(plan) == moveit::planning_interface::MoveItErrorCode::SUCCESS);
         ROS_INFO_NAMED("pnp", "Opening gripper %s", success ? "" : "FAILED");
-        move_group_interface_gripper.move();
+        move_group_interface_gripper->move();
 
     }
 
@@ -298,9 +298,9 @@ namespace pnp
         set_pose_target(rod_position, {45, 90, 45});
 
         // execute the plan
-        move_group_interface_arm.move();
+        move_group_interface_arm->move();
 
-        std::cout << "Press enter to continue...";
+        ROS_INFO_NAMED("pnp", "Target Reached - Press any button to continue");
         std::cin.ignore();
 
         // reset
@@ -308,7 +308,7 @@ namespace pnp
         clean_scene();
         remove_pose_arrow();
 
-        std::cout << "Press enter to exit...";
+        ROS_INFO_NAMED("pnp", "Simulation Complete - Press any button to exit");
         std::cin.ignore();
         
     }

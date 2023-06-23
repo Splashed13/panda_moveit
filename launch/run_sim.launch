@@ -52,20 +52,20 @@
   </group>
 
   <!-- Run the main MoveIt executable without trajectory execution (we do not have controllers configured by default) -->
-  <include file="$(find franka_gazebo)/launch/move_group.launch" pass_all_args="true">
+  <include file="$(find panda_moveit_config)/launch/move_group.launch" pass_all_args="true">
     <arg name="allow_trajectory_execution" value="true" />
     <arg name="info" value="true" />
   </include>
 
   <!-- Run Rviz and load the default config to see the state of the move_group node -->
-  <include file="$(find franka_gazebo)/launch/moveit_rviz.launch" if="$(arg use_rviz)">
+  <include file="$(find panda_moveit_config)/launch/moveit_rviz.launch" if="$(arg use_rviz)">
     <arg name="rviz_tutorial" value="$(arg rviz_tutorial)"/>
-    <arg name="rviz_config" value="$(find franka_gazebo)/launch/moveit.rviz"/>
+    <arg name="rviz_config" value="$(find panda_moveit_config)/launch/moveit.rviz"/>
     <arg name="debug" value="$(arg debug)"/>
   </include>
 
   <!-- If database loading was enabled, start mongodb as well -->
-  <include file="$(find franka_gazebo)/launch/default_warehouse_db.launch" if="$(arg db)">
+  <include file="$(find panda_moveit_config)/launch/default_warehouse_db.launch" if="$(arg db)">
     <arg name="moveit_warehouse_database_path" value="$(arg db_path)"/>
   </include>
 

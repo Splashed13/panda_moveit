@@ -39,8 +39,8 @@ namespace pnp
         const std::string PLANNING_GROUP_ARM = "panda_arm";
         const std::string PLANNING_GROUP_GRIPPER = "panda_hand";
 
-        moveit::planning_interface::MoveGroupInterface move_group_interface_arm;
-        moveit::planning_interface::MoveGroupInterface move_group_interface_gripper;
+        std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_interface_arm;
+        std::unique_ptr<moveit::planning_interface::MoveGroupInterface> move_group_interface_gripper;
 
         // Create a moveit::planning_interface::MoveGroupInterface::Plan object to store the movements
         moveit::planning_interface::MoveGroupInterface::Plan plan;
@@ -48,8 +48,6 @@ namespace pnp
         // planning_scene_interface allows us to add and remove collision objects in the world
         moveit::planning_interface::PlanningSceneInterface planning_scene_interface;
 
-        const robot_state::JointModelGroup *joint_model_group_arm;
-        const robot_state::JointModelGroup *joint_model_group_gripper;
 
         std::vector<double> floor_dimensions = {2.5, 2.5, 0.01};
         std::vector<double> floor_position = {0.0, 0.0, -0.01};
@@ -154,6 +152,15 @@ namespace pnp
          */
         void go_to_home_position(void);
 
+        /**
+         * @brief Opens the gripper.
+         * 
+         * This function uses MoveIt! to plan and execute a trajectory that moves the gripper from its current position to its open position.
+         * A message is printed to the ROS console indicating whether the trajectory planning was successful or not.
+         * If the plan is successful, the gripper is then moved to the open position.
+         * 
+         * @note This function does not take any parameters and does not return a value.
+        */
         void open_gripper(void);
 
         /**

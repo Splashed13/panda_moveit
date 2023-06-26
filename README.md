@@ -40,5 +40,8 @@ To kill all ros processes
 
 ```
 killall -9 roscore rosmaster rosout roslaunch
+pkill -f gzserver
+pkill -f gzclient
+pkill -f roslaunch
 ```
 
